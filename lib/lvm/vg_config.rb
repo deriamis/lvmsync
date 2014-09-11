@@ -63,10 +63,10 @@ class LVM::VGConfig
 					stdin_fd.close
 					stdout = stdout_fd.read
 					stderr = stderr_fd.read
-					exit_status = wait_thr.value
+					exit_status = wait_thr.value if wait_thr
 				end
 
-				if exit_status.exitstatus != 0
+				if (exit_status or $?).exitstatus != 0
 					raise RuntimeError,
 					      "Failed to run vgcfgbackup: #{stdout}\n#{stderr}"
 				end

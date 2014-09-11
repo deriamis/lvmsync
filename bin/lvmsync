@@ -20,7 +20,7 @@
 require 'optparse'
 require 'lvm'
 
-PROTOCOL_VERSION = "lvmsync PROTO[2]"
+PROTOCOL_VERSION = "lvmsync PROTO[3]"
 
 include LVM::Helpers
 
@@ -116,13 +116,15 @@ def process_dumpdata(instream, destdev, snapback = nil)
 		exit 1
 	end
 
+	snapback.puts handshake if snapback
+
 	File.open(destdev, 'w+') do |dest|
 		while header = instream.read(12)
 			offset, chunksize = header.unpack("QN")
 			offset = ntohq(offset)
 
 			begin
-				dest.seek offset * chunksize
+				dest.seek offset
 			rescue Errno::EINVAL
 				# In certain rare circumstances, we want to transfer a block
 				# device where the destination is smaller than the source (DRBD
@@ -140,7 +142,7 @@ def process_dumpdata(instream, destdev, snapback = nil)
 			if snapback
 				snapback.write(header)
 				snapback.write dest.read(chunksize)
-				dest.seek offset * chunksize
+				dest.seek offset
 			end
 			dest.write instream.read(chunksize)
 		end
@@ -191,7 +193,7 @@ def run_client(opts)
 		server_cmd = if desthost
 			"ssh #{sshkey} #{desthost} lvmsync --apply - #{snapback} #{destdev}"
 		else
-			"lvmsync --apply - #{snapback} #{destdev}"
+			"#{$0} --apply - #{snapback} #{destdev}"
 		end
 
 		outfd = IO.popen(server_cmd, 'w')
